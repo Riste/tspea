@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: travelsanta-worker
+spec:
+  parallelism: 100
+  template:
+    metadata:
+      labels:
+        app: travelsanta-worker
+    spec:
+      containers:
+        - name: travelsanta-worker
+          image:  gcr.io/sap-solexp-gcp-sedid/rgligor/travelsanta:latest
+          env:
+            - name: TYPE
+              value: "worker"
+            - name: CITIES_FILE
+              value: "/mnt/rgligor-travelsanta/cities.csv"
+            - name: BROKER_URL
+              value: "amqp://guest:guest@rabbitmq-service:5672"
+            - name: OUT_DIR
+              value: "/mnt/rgligor-travelsanta/travelsanta_run"
+            - name: LSEARCH_NBOUR_SIZE
+              value: "200"
+            - name: RAND_SEARCH_PROB
+              value: "0.5"
+          securityContext:
+            privileged: true
+            capabilities:
+              add:
+                - SYS_ADMIN
+          lifecycle:
+            postStart:
+              exec:
+                command: ["gcsfuse", "-o", "nonempty", "rgligor-travelsanta", "/mnt/rgligor-travelsanta"]
+            preStop:
+              exec:
+                command: ["fusermount", "-u", "/mnt/rgligor-travelsanta"]
+      restartPolicy: OnFailure
+      nodeSelector:
+        cloud.google.com/gke-nodepool: default-pool

@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: travelsanta-master
+spec:
+  template:
+    metadata:
+      labels:
+        app: travelsanta-master
+    spec:
+      containers:
+        - name: travelsanta-master
+          image:  gcr.io/sap-solexp-gcp-sedid/rgligor/travelsanta:latest
+          env:
+            - name: TYPE
+              value: "master"
+            - name: CITIES_FILE
+              value: "/mnt/rgligor-travelsanta/cities.csv"
+            - name: BROKER_URL
+              value: "amqp://guest:guest@rabbitmq-service:5672"
+            - name: OUT_DIR
+              value: "/mnt/rgligor-travelsanta/travelsanta_run"
+            - name: POP_SIZE
+              value: "200"
+            - name: NUM_GENS
+              value: "1000"
+            - name: CROSSOVER_PROB
+              value: "0.7"
+            - name: MUTATION_PROB
+              value: "1.0"
+          securityContext:
+            privileged: true
+            capabilities:
+              add:
+                - SYS_ADMIN
+          lifecycle:
+            postStart:
+              exec:
+                command: ["gcsfuse", "-o", "nonempty", "rgligor-travelsanta", "/mnt/rgligor-travelsanta"]
+            preStop:
+              exec:
+                command: ["fusermount", "-u", "/mnt/rgligor-travelsanta"]
+      nodeSelector:
+        cloud.google.com/gke-nodepool: master-pool
+      restartPolicy: OnFailure
